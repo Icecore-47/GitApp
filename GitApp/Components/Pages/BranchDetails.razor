@@ -1,0 +1,87 @@
+﻿@page "/branch-details/{projectId}/{repositoryId}/{branchName}"
+@using GitApp.Models
+@using GitApp.Services
+@using MudBlazor
+@inject IAzureDevOpsService AzureDevOpsService
+@inject ILogger<BranchDetails> Logger
+
+<h3>Commits for Branch: @BranchName</h3>
+
+@if (isLoading)
+{
+    <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+}
+else if (errorMessage != null)
+{
+    <MudAlert Severity="Severity.Error">@errorMessage</MudAlert>
+}
+else if (commits == null || commits.Count == 0)
+{
+    <MudText>No commits found for this branch.</MudText>
+}
+else
+{
+    <MudTable Items="@commits" Dense="true" Hover="true" Bordered="true" Striped="true">
+        <HeaderContent>
+            <MudTh>Commit ID</MudTh>
+            <MudTh>Message</MudTh>
+            <MudTh>Author</MudTh>
+            <MudTh>Author Email</MudTh>
+            <MudTh>Date</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Commit ID">
+                <MudLink Href="@($"/commit-details/{ProjectId}/{RepositoryId}/{context.CommitId}")">@context.CommitId</MudLink>
+            </MudTd>
+            <MudTd DataLabel="Message">@context.Comment</MudTd>
+            <MudTd DataLabel="Author">@context.Author.Name</MudTd>
+            <MudTd DataLabel="Author Email">@context.Author.Email</MudTd>
+            <MudTd DataLabel="Date">@context.Author.Date.ToString("g")</MudTd>
+        </RowTemplate>
+    </MudTable>
+
+
+
+}
+
+@code {
+    [Parameter]
+    public string ProjectId { get; set; }
+
+    [Parameter]
+    public string RepositoryId { get; set; }
+
+    [Parameter]
+    public string BranchName { get; set; }
+
+    private List<GitCommit> commits;
+    private bool isLoading = true;
+    private string errorMessage;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (string.IsNullOrWhiteSpace(ProjectId) || string.IsNullOrWhiteSpace(RepositoryId) || string.IsNullOrWhiteSpace(BranchName))
+        {
+            Logger.LogWarning("Invalid parameters provided for branch details.");
+            errorMessage = "Invalid parameters.";
+            isLoading = false;
+            return;
+        }
+
+        try
+        {
+            Logger.LogInformation("Fetching commits for ProjectId: {ProjectId}, RepositoryId: {RepositoryId}, BranchName: {BranchName}", ProjectId, RepositoryId, BranchName);
+            commits = await AzureDevOpsService.GetCommitsAsync(ProjectId, RepositoryId, BranchName);
+            Logger.LogInformation("Successfully fetched {CommitCount} commits for branch {BranchName}", commits.Count, BranchName);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading commits for branch {BranchName}.");
+            errorMessage = "An error occurred while loading commits. Please try again later.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}

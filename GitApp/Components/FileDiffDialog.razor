@@ -1,0 +1,38 @@
+﻿@page "/FileDiffDialog"
+@using Blazorme
+
+<MudDialog>
+    <DialogContent>
+  <Diff FirstInput="@OldText"  
+
+      SecondInput="@NewText"
+              OutputFormat="@DiffOutputFormat.Row" 
+              Style=@DiffStyle.Char />  
+  </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="CloseDialog">Close</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private MudDialogInstance MudDialogInstance { get; set; }
+
+    [Parameter] public string OldText { get; set; } = string.Empty;
+    [Parameter] public string NewText { get; set; } = string.Empty;
+
+    protected override void OnParametersSet()
+    {
+        // Log parameter values for debugging
+        Console.WriteLine("FileDiffDialog component parameters:");
+        Console.WriteLine($"OldText: {(OldText == null ? "null" : "not null")}");
+        Console.WriteLine($"NewText: {(NewText == null ? "null" : "not null")}");
+
+        if (OldText == null || NewText == null)
+        {
+            Console.WriteLine("Warning: OldText or NewText parameter is null.");
+        }
+    }
+
+    private void CloseDialog() => MudDialogInstance?.Close();
+}

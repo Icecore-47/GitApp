@@ -1,0 +1,138 @@
+﻿@page "/project-repositories/{projectId}"
+@using GitApp.Models
+@using GitApp.Services
+@using MudBlazor
+@using System.Collections.Generic
+@using System.Threading.Tasks
+@inject IAzureDevOpsService AzureDevOpsService
+@inject NavigationManager Navigation
+@inject ILogger<ProjectRepositories> Logger
+
+<h3>Repositories for Project: @ProjectName</h3>
+
+@if (isLoading)
+{
+    <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+}
+else if (errorMessage != null)
+{
+    <MudAlert Severity="Severity.Error">@errorMessage</MudAlert>
+}
+else if (repositories == null || repositories.Count == 0)
+{
+    <MudText>No repositories found for this project.</MudText>
+}
+else
+{
+    <MudTable Items="@repositories" Dense="true" Hover="true" Bordered="true" Striped="true">
+        <HeaderContent>
+            <MudTh>Repository Name</MudTh>
+            <MudTh>Repository URL</MudTh>
+            <MudTh>Default Branch</MudTh>
+            <MudTh>Web URL</MudTh>
+            <MudTh>Actions</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Repository Name">@context.Name</MudTd>
+            <MudTd DataLabel="Repository URL">
+                <MudLink Href="@context.Url" Target="_blank">@context.Url</MudLink>
+            </MudTd>
+            <MudTd DataLabel="Default Branch">@context.DefaultBranch</MudTd>
+            <MudTd DataLabel="Web URL">
+                <MudLink Href="@context.WebUrl" Target="_blank">@context.WebUrl</MudLink>
+            </MudTd>
+            <MudTd DataLabel="Actions">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => NavigateToBranchDetails(ProjectId, context.Id, GetBranchName(context.DefaultBranch)))">
+                    View Branch Details
+                </MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Secondary" OnClick="@(() => NavigateToBranchList(ProjectId, context.Id))" Class="ml-2">
+                    View All Branches
+                </MudButton>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+@code {
+    [Parameter]
+    public string ProjectId { get; set; }
+
+    private List<GitRepository> repositories;
+    private bool isLoading = true;
+    private string errorMessage;
+    private string ProjectName { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (string.IsNullOrWhiteSpace(ProjectId))
+        {
+            Logger.LogWarning("Project ID parameter is null or empty.");
+            errorMessage = "Invalid Project ID.";
+            isLoading = false;
+            return;
+        }
+
+        try
+        {
+            Logger.LogInformation("Fetching repositories for Project ID: {ProjectId}", ProjectId);
+            repositories = await AzureDevOpsService.GetRepositoriesAsync(ProjectId);
+            Logger.LogInformation("Successfully fetched {RepoCount} repositories for Project ID: {ProjectId}", repositories.Count, ProjectId);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading repositories for Project ID: {ProjectId}", ProjectId);
+            errorMessage = "An error occurred while loading repositories. Please try again later.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private string GetBranchName(string refName)
+    {
+        if (string.IsNullOrWhiteSpace(refName))
+            return "Unknown";
+
+        // Azure DevOps uses 'refs/heads/branch-name', so extract the branch name
+        return refName.Replace("refs/heads/", "");
+    }
+
+    private void NavigateToBranchDetails(string projectId, string repositoryId, string branchName)
+    {
+        if (string.IsNullOrWhiteSpace(projectId) || string.IsNullOrWhiteSpace(repositoryId) || string.IsNullOrWhiteSpace(branchName))
+        {
+            Logger.LogWarning("Attempted to navigate to branch details with missing parameters.");
+            return;
+        }
+
+        try
+        {
+            Logger.LogInformation("Navigating to branch details. ProjectId: {ProjectId}, RepositoryId: {RepositoryId}, BranchName: {BranchName}", projectId, repositoryId, branchName);
+            Navigation.NavigateTo($"/branch-details/{projectId}/{repositoryId}/{branchName}");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to navigate to branch details.");
+        }
+    }
+
+    private void NavigateToBranchList(string projectId, string repositoryId)
+    {
+        if (string.IsNullOrWhiteSpace(projectId) || string.IsNullOrWhiteSpace(repositoryId))
+        {
+            Logger.LogWarning("Attempted to navigate to branch list with missing parameters.");
+            return;
+        }
+
+        try
+        {
+            Logger.LogInformation("Navigating to branch list. ProjectId: {ProjectId}, RepositoryId: {RepositoryId}", projectId, repositoryId);
+            Navigation.NavigateTo($"/repository-branches/{projectId}/{repositoryId}");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to navigate to branch list.");
+        }
+    }
+}

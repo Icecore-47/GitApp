@@ -1,0 +1,38 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <base href="/" />  
+    <link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap" rel="stylesheet" />
+    <link href="_content/MudBlazor/MudBlazor.min.css" rel="stylesheet" />
+    <link href="_content/BlazorTextDiff/css/BlazorDiff.css" rel="stylesheet" />
+    <link rel="icon" type="image/ico" href="favicon.ico" />
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/diff2html@3.1.7/bundles/css/diff2html.min.css"
+          integrity="sha256-JDuTv80/2mUu1FBkviyttybv8oWSYmqVttPo7VlCXfE="
+          crossorigin="anonymous">
+    <HeadOutlet @rendermode="InteractiveServer" />
+</head>
+
+<body>
+    <Routes @rendermode="InteractiveServer" />
+    <script src="_framework/blazor.web.js"></script>
+    <script src="_content/MudBlazor/MudBlazor.min.js"></script>
+    <script src="_content/BlazorTextDiff/js/BlazorTextDiff.js"></script>
+    <!-- inside head section -->
+
+
+    <!-- inside body section -->
+    <script src="https://cdn.jsdelivr.net/npm/diff@4.0.2/dist/diff.min.js"
+            integrity="sha256-xofEpXTFTnsOK+GIsjgJc1ZN0kSE3KsTtZJ2GQaWs3I="
+            crossorigin="anonymous">
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/diff2html@3.1.7/bundles/js/diff2html.min.js"
+            integrity="sha256-jaOrunaAmlbF5x0BUXSJbKimY9Urt8yORnOg3A9BDfM="
+            crossorigin="anonymous">
+    </script>
+</body>
+
+</html>

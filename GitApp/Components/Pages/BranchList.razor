@@ -1,0 +1,78 @@
+﻿@page "/repository-branches/{projectId}/{repositoryId}"
+@using GitApp.Models
+@using GitApp.Services
+@using MudBlazor
+@inject IAzureDevOpsService AzureDevOpsService
+@inject ILogger<BranchList> Logger
+
+<h3>Branches in Repository: @RepositoryName</h3>
+
+@if (isLoading)
+{
+    <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+}
+else if (errorMessage != null)
+{
+    <MudAlert Severity="Severity.Error">@errorMessage</MudAlert>
+}
+else if (branches == null || branches.Count == 0)
+{
+    <MudText>No branches found for this repository.</MudText>
+}
+else
+{
+    <MudTable Items="@branches" Dense="true" Hover="true" Bordered="true" >
+        <HeaderContent>
+            <MudTh>Branch Name</MudTh>
+            <MudTh>Creator</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Branch Name">@context.Name.Replace("refs/heads/","")</MudTd>
+            <MudTd DataLabel="Last Commit">@context.Creator.DisplayName</MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+@code {
+    [Parameter]
+    public string ProjectId { get; set; }
+
+    [Parameter]
+    public string RepositoryId { get; set; }
+
+    private List<Branch> branches;
+    private bool isLoading = true;
+    private string errorMessage;
+    private string RepositoryName { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (string.IsNullOrWhiteSpace(ProjectId) || string.IsNullOrWhiteSpace(RepositoryId))
+        {
+            Logger.LogWarning("Project ID or Repository ID parameter is null or empty.");
+            errorMessage = "Invalid Project or Repository ID.";
+            isLoading = false;
+            return;
+        }
+
+        try
+        {
+            Logger.LogInformation("Fetching branches for Project ID: {ProjectId}, Repository ID: {RepositoryId}", ProjectId, RepositoryId);
+            branches = await AzureDevOpsService.GetBranchesAsync(ProjectId, RepositoryId);
+            Logger.LogInformation("Successfully fetched {BranchCount} branches for Repository ID: {RepositoryId}", branches.Count, RepositoryId);
+
+            // Optional: Fetch repository name for display
+            var repository = await AzureDevOpsService.GetRepositoryAsync(ProjectId, RepositoryId);
+            RepositoryName = repository.Name;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading branches for Repository ID: {RepositoryId}", RepositoryId);
+            errorMessage = "An error occurred while loading branches. Please try again later.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}

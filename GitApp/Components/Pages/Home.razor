@@ -1,0 +1,92 @@
+﻿@page "/"
+@using GitApp.Models
+@using GitApp.Services
+@using MudBlazor
+@using System.Collections.Generic
+@using System.Threading.Tasks
+@inject IAzureDevOpsService _azureService
+@inject ILogger<Index> Logger
+
+<MudText Typo="Typo.h5" Class="mb-4">Azure DevOps Projects</MudText>
+
+@if (isLoading)
+
+{
+    <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+}
+
+else if (errorMessage != null)
+
+{
+    <MudAlert Severity="Severity.Error" Class="mb-4">@errorMessage</MudAlert>
+}
+
+else if (projects == null || projects.Count == 0)
+
+{
+    <MudText>No projects found.</MudText>
+}
+
+else
+
+{
+    <MudGrid>
+        @foreach (var project in projects)
+
+        {
+            <MudItem xs="12" sm="6" md="4">
+                <ProjectCard Project="project" />
+            </MudItem>
+        }
+        </MudGrid>
+}
+
+@code {
+    private List<Project> projects;
+
+    private bool isLoading = true;
+
+    private string errorMessage;
+
+
+
+    protected override async Task OnInitializedAsync()
+
+    {
+
+        try
+
+        {
+
+            Logger.LogInformation("Fetching Azure DevOps projects.");
+
+
+
+            projects = await _azureService.GetProjectsAsync();
+
+
+
+            Logger.LogInformation("Successfully fetched {ProjectCount} projects.", projects.Count);
+
+        }
+
+        catch (Exception ex)
+
+        {
+
+            Logger.LogError(ex, "Error loading projects.");
+
+            errorMessage = "An error occurred while loading projects. Please try again later.";
+
+        }
+
+        finally
+
+        {
+
+            isLoading = false;
+
+        }
+
+    }
+}

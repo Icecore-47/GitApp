@@ -1,0 +1,52 @@
+﻿@using GitApp.Models
+@using MudBlazor
+@using Microsoft.AspNetCore.Components
+@inject NavigationManager Navigation
+@inject ILogger<ProjectCard> Logger
+
+<MudCard>
+    <MudCardHeader>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h6">@Project.Name</MudText>
+            @if (!string.IsNullOrWhiteSpace(Project.Description))
+            {
+                <MudText Typo="Typo.subtitle2">@Project.Description</MudText>
+            }
+        </CardHeaderContent>
+    </MudCardHeader>
+    <MudCardContent>
+        <MudText Typo="Typo.body2">Last Updated: @Project.LastUpdateTime.ToString("dd-MM-yyyy HH:mm:ss")</MudText>
+        <MudText Typo="Typo.body2">Project ID: @Project.Id</MudText>
+    </MudCardContent>
+    <MudCardActions>
+        <MudButton Color="Color.Primary" Variant="Variant.Outlined" OnClick="NavigateToRepositories">
+            View Repositories
+        </MudButton>
+    </MudCardActions>
+</MudCard>
+
+@code {
+    [Parameter]
+    public Project Project { get; set; }
+
+    private void NavigateToRepositories()
+    {
+        if (Project == null || string.IsNullOrWhiteSpace(Project.Id))
+        {
+            Logger.LogWarning("Project or Project ID is null/empty. Cannot navigate to repositories.");
+            return;
+        }
+
+        try
+        {
+            Logger.LogInformation("Navigating to repositories for Project ID: {ProjectId}", Project.Id);
+            Navigation.NavigateTo($"/project-repositories/{Project.Id}");
+            Logger.LogInformation("Navigation to /project-repositories/{ProjectId} successful.", Project.Id);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to navigate to repositories for Project ID: {ProjectId}", Project.Id);
+            // Optionally, display a user-friendly message or notification
+        }
+    }
+}

@@ -1,0 +1,142 @@
+﻿@page "/commit-details/{projectId}/{repositoryId}/{commitId}"
+@using GitApp.Models
+@using GitApp.Services
+@using Microsoft.Extensions.Options
+@inject IAzureDevOpsService AzureDevOpsService
+@inject ILogger<CommitDetails> Logger
+@inject IOptions<AzureDevOpsSettings> AzureDevOpsSettings
+@inject IDialogService _DialogService
+
+<h3>Commit Details</h3>
+
+@if (isLoading)
+{
+    <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+}
+else if (errorMessage != null)
+{
+    <MudAlert Severity="Severity.Error">@errorMessage</MudAlert>
+}
+else if (commit == null)
+{
+    <MudText>No details found for this commit.</MudText>
+}
+else
+{
+    <MudCard>
+        <MudCardContent>
+            <MudText><b>Commit ID:</b> @commit.CommitId</MudText>
+            <MudText><b>Message:</b> @commit.Comment</MudText>
+            <MudText><b>Author:</b> @commit.Author.Name (@commit.Author.Email) on @commit.Author.Date.ToString("g")</MudText>
+            <MudText><b>Committer:</b> @commit.Committer.Name (@commit.Committer.Email) on @commit.Committer.Date.ToString("g")</MudText>
+
+            <MudText><b>Changes:</b></MudText>
+            @if (commit.Changes != null && commit.Changes.Count > 0)
+            {
+                <MudTable Items="@commit.Changes" Dense="true" Hover="true" Bordered="true" Striped="true">
+                    <HeaderContent>
+                        <MudTh>File Path</MudTh>
+                        <MudTh>Change Type</MudTh>
+                        <MudTh>Diff View</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="File Path">@context.Item.Path</MudTd>
+                        <MudTd DataLabel="Change Type">@context.ChangeType</MudTd>
+                        <MudTd DataLabel="Diff View">
+                            <MudButton OnClick="() => ShowFileDiff(context.Item)">View Diff</MudButton>
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            }
+            else
+            {
+                <MudText>No file changes found for this commit.</MudText>
+            }
+        </MudCardContent>
+    </MudCard>
+}
+
+@code {
+    [Parameter]
+    public string ProjectId { get; set; }
+
+    [Parameter]
+    public string RepositoryId { get; set; }
+
+    [Parameter]
+    public string CommitId { get; set; }
+    [CascadingParameter]
+    private MudDialogInstance MudDialogInstance { get; set; }
+
+    private GitCommit commit;
+    private bool isLoading = true;
+    private string errorMessage;
+
+    // Access organization from AzureDevOpsSettings
+    private string organization => AzureDevOpsSettings.Value.Organization;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (string.IsNullOrWhiteSpace(organization) || string.IsNullOrWhiteSpace(ProjectId) || string.IsNullOrWhiteSpace(RepositoryId) || string.IsNullOrWhiteSpace(CommitId))
+        {
+            Logger.LogWarning("Invalid parameters provided for commit details.");
+            errorMessage = "Invalid parameters.";
+            isLoading = false;
+            return;
+        }
+
+        try
+        {
+            Logger.LogInformation("Fetching commit details for CommitId: {CommitId}", CommitId);
+            commit = await AzureDevOpsService.GetCommitAsync(ProjectId, RepositoryId, CommitId);
+            commit.Changes = await AzureDevOpsService.GetCommitChangesAsync(organization, ProjectId, RepositoryId, CommitId);
+            Logger.LogInformation("Successfully fetched details for commit {CommitId}", CommitId);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading commit details for CommitId: {CommitId}", CommitId);
+            errorMessage = "An error occurred while loading commit details. Please try again later.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task ShowFileDiff(GitItem item)
+    {
+        try
+        {
+            var parentCommitId = commit.Parents.FirstOrDefault();
+            if (string.IsNullOrEmpty(parentCommitId))
+            {
+                errorMessage = "Unable to fetch parent commit for diff comparison.";
+                return;
+            }
+
+            var oldContent = await AzureDevOpsService.GetFileContentAsync(organization, ProjectId, RepositoryId, parentCommitId, item.Path);
+            var newContent = await AzureDevOpsService.GetFileContentAsync(organization, ProjectId, RepositoryId, CommitId, item.Path);
+
+            // Show dialog with file diff
+            var parameters = new DialogParameters
+        {
+            { "OldText", oldContent },
+            { "NewText", newContent }
+        };
+            var options = new DialogOptions() { CloseButton = true, MaxWidth = MaxWidth.ExtraExtraLarge };
+
+            // Ensure this line uses _DialogService to open the dialog
+            _DialogService.Show<FileDiffDialog>("File Diff", parameters, options);
+        }
+        catch (FileNotFoundException ex)
+        {
+            Logger.LogWarning(ex, "File content could not be retrieved for item '{ItemPath}'", item.Path);
+            errorMessage = $"The file content for '{item.Path}' could not be retrieved. It may not exist or has been removed.";
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "An error occurred while trying to show file diff for '{ItemPath}'", item.Path);
+            errorMessage = "An error occurred while loading the file diff. Please try again later.";
+        }
+    }
+}
